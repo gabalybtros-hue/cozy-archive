@@ -24,7 +24,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // جعل الدوال متاحة عالمياً داخل الصفحة
         window.db = db;
         window.dbRef = ref;
         window.dbSet = set;
@@ -33,7 +32,6 @@
         window.dbRemove = remove;
         window.dbUpdate = update;
 
-        // إطلاق حدث يخبر الصفحة أن فايربيس جهز
         window.dispatchEvent(new Event('firebase-ready'));
     </script>
     <style>
@@ -111,7 +109,6 @@
             padding: 0 15px;
         }
 
-        /* لوحة التحكم للمسؤول */
         #admin-panel {
             background: var(--surface-card);
             border: 1px solid var(--primary);
@@ -173,7 +170,6 @@
             background: #d4af37;
         }
 
-        /* تبويبات العرض */
         .tabs {
             display: flex;
             gap: 10px;
@@ -200,7 +196,6 @@
             border-color: var(--primary);
         }
 
-        /* محتوى الأقسام */
         .section-content {
             display: none;
         }
@@ -209,7 +204,6 @@
             display: block;
         }
 
-        /* كروت الأرشيف */
         .card {
             background: var(--surface-card);
             border: 1px solid var(--border);
@@ -252,250 +246,4 @@
             line-height: 1.5;
         }
 
-        .card-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.85rem;
-            color: #777;
-            border-top: 1px solid var(--border);
-            padding-top: 8px;
-        }
-
-        .admin-actions {
-            display: none;
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .admin-actions.show {
-            display: flex;
-        }
-
-        .btn-sm {
-            padding: 5px 10px;
-            font-size: 0.8rem;
-            border-radius: 4px;
-            cursor: pointer;
-            border: none;
-            font-weight: 600;
-        }
-
-        .btn-edit { background: #f39c12; color: #fff; }
-        .btn-delete { background: #e74c3c; color: #fff; }
-
-        /* شاشة التحميل السحابي */
-        #sync-status {
-            text-align: center;
-            padding: 20px;
-            color: var(--primary);
-            font-weight: 500;
-        }
-    </style>
-</head>
-<body>
-
-    <header>
-        <div class="admin-btn-container">
-            <button class="btn-admin" id="adminToggleBtn" onclick="toggleAdminPanel()">🔒 لوحة المسؤول</button>
-        </div>
-        <h1>أرشيف الخدمات والأنشطة الكنسية</h1>
-        <p>سجل الأنشطة، الألعاب، والمواضيع السحابي المباشر</p>
-    </header>
-
-    <div class="container">
-        
-        <!-- لوحة تحكم المسؤول (مخفية افتراضياً) -->
-        <div id="admin-panel">
-            <h3>إضافة محتوى جديد للأرشيف</h3>
-            <form id="archiveForm" onsubmit="saveItem(event)">
-                <input type="hidden" id="editItemId">
-                <div class="form-group">
-                    <label>نوع المحتوى</label>
-                    <select id="itemCategory" required>
-                        <option value="لعبة">لعبة (Game)</option>
-                        <option value="موضوع">موضوع (Topic)</option>
-                        <option value="ترنيمة">ترنيمة (Anthem)</option>
-                        <option value="لعبة كبرى">لعبة كبرى (Major Game)</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>العنوان</label>
-                    <input type="text" id="itemTitle" placeholder="مثال: مسابقة الكتاب المقدس" required>
-                </div>
-                <div class="form-group">
-                    <label>التفاصيل / الوصف</label>
-                    <textarea id="itemDesc" rows="3" placeholder="تفاصيل النشاط..." required></textarea>
-                </div>
-                <div class="form-group">
-                    <label>التاريخ</label>
-                    <input type="date" id="itemDate" required>
-                </div>
-                <button type="submit" class="btn-primary" id="saveBtn">حفظ ونشر بالسحاب ✦</button>
-            </form>
-        </div>
-
-        <!-- أزرار التنقل بين الأقسام -->
-        <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('all', this)">📌 الكل</button>
-            <button class="tab-btn" onclick="switchTab('لعبة', this)">🎮 ألعاب</button>
-            <button class="tab-btn" onclick="switchTab('موضوع', this)">📖 مواضيع</button>
-            <button class="tab-btn" onclick="switchTab('ترنيمة', this)">🎵 ترانيم</button>
-            <button class="tab-btn" onclick="switchTab('لعبة كبرى', this)">🏆 ألعاب كبرى</button>
-        </div>
-
-        <div id="sync-status">جاري مزامنة البيانات من السحاب... ☁️</div>
-        
-        <!-- قائمة عرض الأرشيف -->
-        <div id="archiveContainer"></div>
-
-    </div>
-
-    <script>
-        let isAdmin = false;
-        let archiveData = {};
-
-        // انتظار اتصال فايربيس
-        window.addEventListener('firebase-ready', () => {
-            const itemsRef = window.dbRef(window.db, 'archiveItems');
-            window.dbOnValue(itemsRef, (snapshot) => {
-                const data = snapshot.val();
-                archiveData = data || {};
-                document.getElementById('sync-status').style.display = 'none';
-                renderArchive();
-            });
-        });
-
-        // تفعيل لوحة المسؤول بكلمة المرور
-        function toggleAdminPanel() {
-            if (!isAdmin) {
-                let pass = prompt("أدخل كلمة مرور المسؤول:");
-                if (pass === "1234") {
-                    isAdmin = true;
-                    document.getElementById('admin-panel').style.display = 'block';
-                    document.getElementById('adminToggleBtn').innerText = "🔓 خروج من المسؤول";
-                    document.getElementById('adminToggleBtn').classList.add('active');
-                    renderArchive();
-                } else if (pass !== null) {
-                    alert("كلمة المرور غير صحيحة!");
-                }
-            } else {
-                isAdmin = false;
-                document.getElementById('admin-panel').style.display = 'none';
-                document.getElementById('adminToggleBtn').innerText = "🔒 لوحة المسؤول";
-                document.getElementById('adminToggleBtn').classList.remove('active');
-                clearForm();
-                renderArchive();
-            }
-        }
-
-        // حفظ أو تعديل عنصر في Firebase
-        function saveItem(e) {
-            e.preventDefault();
-            if (!isAdmin) return;
-
-            const editId = document.getElementById('editItemId').value;
-            const category = document.getElementById('itemCategory').value;
-            const title = document.getElementById('itemTitle').value;
-            const desc = document.getElementById('itemDesc').value;
-            const date = document.getElementById('itemDate').value;
-
-            const itemData = { category, title, desc, date };
-
-            if (editId) {
-                // تعديل عنصر موجود
-                const itemRef = window.dbRef(window.db, 'archiveItems/' + editId);
-                window.dbSet(itemRef, itemData).then(() => {
-                    clearForm();
-                    alert("تم تحديث النشاط بنجاح!");
-                });
-            } else {
-                // إضافة عنصر جديد
-                const itemsRef = window.dbRef(window.db, 'archiveItems');
-                const newItemRef = window.dbPush(itemsRef);
-                window.dbSet(newItemRef, itemData).then(() => {
-                    clearForm();
-                    alert("تم إضافة النشاط بنجاح للسحاب!");
-                });
-            }
-        }
-
-        // حذف عنصر من Firebase
-        function deleteItem(id) {
-            if (!isAdmin) return;
-            if (confirm("هل أنت متأكد من حذف هذا النشاط نهائياً؟")) {
-                const itemRef = window.dbRef(window.db, 'archiveItems/' + id);
-                window.dbRemove(itemRef);
-            }
-        }
-
-        // تعبئة نموذج التعديل
-        function editItem(id) {
-            if (!isAdmin) return;
-            const item = archiveData[id];
-            if (!item) return;
-
-            document.getElementById('editItemId').value = id;
-            document.getElementById('itemCategory').value = item.category;
-            document.getElementById('itemTitle').value = item.title;
-            document.getElementById('itemDesc').value = item.desc;
-            document.getElementById('itemDate').value = item.date;
-            document.getElementById('saveBtn').innerText = "حفظ التعديلات ✦";
-            
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        function clearForm() {
-            document.getElementById('archiveForm').reset();
-            document.getElementById('editItemId').value = '';
-            document.getElementById('saveBtn').innerText = "حفظ ونشر بالسحاب ✦";
-        }
-
-        let currentFilter = 'all';
-        function switchTab(category, btn) {
-            currentFilter = category;
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            renderArchive();
-        }
-
-        // رسم كروت الأرشيف على الشاشة
-        function renderArchive() {
-            const container = document.getElementById('archiveContainer');
-            container.innerHTML = '';
-
-            const keys = Object.keys(archiveData);
-            if (keys.length === 0) {
-                container.innerHTML = '<p style="text-align: center; color: var(--text-muted); margin-top: 30px;">لا يوجد أنشطة مضافة حتى الآن.</p>';
-                return;
-            }
-
-            // ترتيب العناصر حسب التاريخ تنازلياً
-            keys.sort((a, b) => new Date(archiveData[b].date) - new Date(archiveData[a].date));
-
-            keys.forEach(id => {
-                const item = archiveData[id];
-                if (currentFilter !== 'all' && item.category !== currentFilter) return;
-
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.innerHTML = `
-                    <div class="card-header">
-                        <span class="card-title">${item.title}</span>
-                        <span class="card-badge">${item.category}</span>
-                    </div>
-                    <div class="card-desc">${item.desc}</div>
-                    <div class="card-footer">
-                        <span>📅 ${item.date}</span>
-                    </div>
-                    <div class="admin-actions ${isAdmin ? 'show' : ''}">
-                        <button class="btn-sm btn-edit" onclick="editItem('${id}')">تعديل</button>
-                        <button class="btn-sm btn-delete" onclick="deleteItem('${id}')">حذف</button>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-        }
-    </script>
-</body>
-</html>
+        .card-footer
