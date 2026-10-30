@@ -3,981 +3,498 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>الأرشيف الكنسي الدافئ</title>
-    <!-- الخطوط -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Readex+Pro:wght@300;400;600&display=swap" rel="stylesheet">
-    
+    <title>أرشيف الخدمات والأنشطة الكنسية</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, set, onValue, push, remove, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAtbuiDat776HcUr92_hyfVt8XcfhLSlUk",
+            authDomain: "church-archive-87f29.firebaseapp.com",
+            databaseURL: "https://church-archive-87f29-default-rtdb.firebaseio.com",
+            projectId: "church-archive-87f29",
+            storageBucket: "church-archive-87f29.firebasestorage.app",
+            messagingSenderId: "445517101247",
+            appId: "1:445517101247:web:137bcfb363ed2bb689ae0a",
+            measurementId: "G-LH3S4MQ3HK"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // جعل الدوال متاحة عالمياً داخل الصفحة
+        window.db = db;
+        window.dbRef = ref;
+        window.dbSet = set;
+        window.dbOnValue = onValue;
+        window.dbPush = push;
+        window.dbRemove = remove;
+        window.dbUpdate = update;
+
+        // إطلاق حدث يخبر الصفحة أن فايربيس جهز
+        window.dispatchEvent(new Event('firebase-ready'));
+    </script>
     <style>
         :root {
-            --bg-beige-light: #fbf9f5;
-            --bg-beige-card: #f3efe6;
-            --bg-beige-accent: #e8e1d5;
-            --silver-dark: #8a939e;
-            --text-main: #3d3a37;
-            --text-muted: #736d67;
-            --accent-warm: #c5a059;
-            --accent-gold: #d4af37;
-            --border-silver: #d1d5db;
+            --primary: #c5a059;
+            --primary-dark: #997835;
+            --bg-dark: #121212;
+            --surface-dark: #1e1e1e;
+            --surface-card: #252525;
+            --text-main: #e0e0e0;
+            --text-muted: #aaaaaa;
+            --border: #333333;
+            --accent: #e67e22;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Tajawal', sans-serif;
+        }
 
         body {
-            font-family: 'Readex Pro', sans-serif;
-            background-color: var(--bg-beige-light);
+            background-color: var(--bg-dark);
             color: var(--text-main);
-            padding: 20px;
+            min-height: 100vh;
+            padding-bottom: 50px;
         }
 
-        .app-header { text-align: center; margin-bottom: 20px; position: relative; }
-        .logo-area { display: flex; align-items: center; justify-content: center; gap: 10px; }
-        .logo-area h1 { font-family: 'Amiri', serif; font-size: 2.2rem; }
-        .sparkle { color: var(--accent-warm); }
-        .subtitle { color: var(--text-muted); font-size: 0.9rem; }
+        header {
+            background: linear-gradient(135deg, var(--surface-dark), var(--bg-dark));
+            border-bottom: 2px solid var(--primary);
+            padding: 20px;
+            text-align: center;
+            position: relative;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
 
-        /* زر دخول المسؤول */
-        .admin-toggle-btn {
-            background: var(--bg-beige-accent);
-            border: 1px solid var(--border-silver);
-            color: var(--text-main);
+        header h1 {
+            color: var(--primary);
+            font-size: 1.8rem;
+            margin-bottom: 5px;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .admin-btn-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+        }
+
+        .btn-admin {
+            background: transparent;
+            border: 1px solid var(--primary);
+            color: var(--primary);
             padding: 8px 15px;
             border-radius: 8px;
-            font-family: inherit;
-            font-size: 0.85rem;
-            font-weight: 600;
             cursor: pointer;
-            margin-top: 15px;
-            transition: all 0.2s ease;
+            font-weight: 700;
+            transition: 0.3s;
         }
-        .admin-toggle-btn:hover { background: var(--border-silver); }
 
-        .main-container { max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+        .btn-admin:hover, .btn-admin.active {
+            background: var(--primary);
+            color: #000;
+        }
 
-        .card {
-            background: var(--bg-beige-card);
-            border: 1px solid var(--border-silver);
-            border-radius: 14px;
+        .container {
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 0 15px;
+        }
+
+        /* لوحة التحكم للمسؤول */
+        #admin-panel {
+            background: var(--surface-card);
+            border: 1px solid var(--primary);
+            border-radius: 12px;
             padding: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
-        }
-
-        .card h2 { font-family: 'Amiri', serif; font-size: 1.4rem; margin-bottom: 15px; border-bottom: 2px solid var(--bg-beige-accent); padding-bottom: 5px; }
-
-        /* قسم جوائز الألعاب */
-        .awards-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-        }
-
-        .award-card {
-            background: linear-gradient(135deg, #fefcf7 0%, #f5efe1 100%);
-            border: 1px solid #e2d1a6;
-            border-radius: 12px;
-            padding: 15px;
-            text-align: center;
-            box-shadow: 0 4px 10px rgba(197, 160, 89, 0.08);
-            position: relative;
-        }
-
-        .award-title {
-            font-family: 'Amiri', serif;
-            font-size: 1.2rem;
-            color: var(--accent-warm);
-            font-weight: bold;
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-        }
-
-        .award-game-name {
-            font-size: 1.15rem;
-            font-weight: 600;
-            color: var(--text-main);
-            margin: 5px 0;
-        }
-
-        .award-author-name {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-        }
-
-        .edit-awards-btn {
-            background: var(--bg-beige-accent);
-            border: 1px solid var(--border-silver);
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 0.8rem;
-            cursor: pointer;
+            margin-bottom: 25px;
             display: none;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
         }
 
-        /* --- تصميم التايم لاين الفاخر (Timeline) --- */
-        .timeline-container {
-            position: relative;
-            padding: 10px 0 10px 20px;
-            margin-top: 15px;
+        #admin-panel h3 {
+            color: var(--primary);
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
         }
 
-        .timeline-container::before {
-            content: '';
-            position: absolute;
-            right: 18px;
-            top: 0;
-            bottom: 0;
-            width: 3px;
-            background: linear-gradient(180deg, var(--accent-gold) 0%, var(--border-silver) 100%);
-            border-radius: 3px;
+        .form-group {
+            margin-bottom: 12px;
         }
 
-        .timeline-item {
-            position: relative;
-            margin-bottom: 20px;
-            padding-right: 45px;
-            animation: fadeIn 0.4s ease-in-out;
-        }
-
-        .timeline-item:last-child {
-            margin-bottom: 0;
-        }
-
-        .timeline-badge {
-            position: absolute;
-            right: 4px;
-            top: 2px;
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            background: #fff;
-            border: 2px solid var(--accent-warm);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--text-muted);
             font-size: 0.9rem;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-            z-index: 2;
         }
 
-        .timeline-content {
-            background: var(--bg-beige-light);
-            border: 1px solid var(--border-silver);
-            border-radius: 10px;
-            padding: 12px 15px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
-            transition: transform 0.2s;
-        }
-
-        .timeline-content:hover {
-            transform: translateX(-3px);
-            border-color: var(--accent-warm);
-        }
-
-        .timeline-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 4px;
-        }
-
-        .timeline-type {
-            font-size: 0.75rem;
-            font-weight: bold;
-            padding: 2px 8px;
-            border-radius: 12px;
-            background: var(--bg-beige-accent);
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 6px;
             color: var(--text-main);
-        }
-
-        .timeline-type.month {
-            background: #f7e7c4;
-            color: #8a6214;
-        }
-
-        .timeline-date {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-        }
-
-        .timeline-title {
-            font-weight: bold;
             font-size: 1rem;
-            color: var(--text-main);
-            margin-top: 2px;
         }
 
-        .timeline-author {
-            font-size: 0.82rem;
-            color: var(--text-muted);
-            margin-top: 3px;
-        }
-
-        /* إخفاء قسم الإضافة افتراضياً */
-        .add-section-container {
-            display: none;
-            animation: fadeIn 0.3s ease-in-out;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .form-group { margin-bottom: 12px; display: flex; flex-direction: column; gap: 5px; }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        label { font-size: 0.85rem; color: var(--text-muted); }
-
-        input, select, textarea {
-            width: 100%; padding: 10px; border: 1px solid var(--border-silver);
-            border-radius: 8px; background: var(--bg-beige-light); color: var(--text-main); font-family: inherit;
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: var(--primary);
             outline: none;
         }
 
-        input:focus, select:focus, textarea:focus { border-color: var(--accent-warm); }
-
         .btn-primary {
-            background: linear-gradient(135deg, #c8cfd6 0%, #aeb4ba 100%);
-            color: #2b2927; border: 1px solid #9aa0a6; padding: 12px; border-radius: 8px;
-            font-weight: 600; cursor: pointer; width: 100%; margin-top: 10px;
-            transition: 0.2s;
-        }
-        .btn-primary:hover { opacity: 0.9; }
-
-        /* تنسيق التقويم */
-        .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .btn-icon { background: var(--bg-beige-accent); border: 1px solid var(--border-silver); width: 30px; height: 30px; border-radius: 6px; cursor: pointer; }
-        .calendar-grid-header { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 0.8rem; margin-bottom: 5px; font-weight: bold; }
-        .calendar-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
-        
-        .day-cell { 
-            min-height: 42px; 
-            background: var(--bg-beige-light); 
-            border: 1px solid var(--bg-beige-accent); 
-            border-radius: 6px; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            font-size: 0.85rem; 
-            position: relative; 
+            background: var(--primary);
+            color: #111;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 700;
             cursor: pointer;
-            transition: all 0.2s ease;
+            width: 100%;
+            margin-top: 10px;
+            transition: 0.3s;
         }
-        .day-cell:hover {
-            border-color: var(--accent-warm);
-            background: #fff;
-        }
-        .day-cell.has-event { 
-            background-color: #f7f3e9; 
-            border-color: var(--accent-warm); 
-            font-weight: bold; 
-            color: var(--accent-warm); 
-        }
-        .day-cell.has-event::after { content: '✦'; font-size: 0.6rem; position: absolute; bottom: 2px; }
 
-        /* تفاصيل اليوم المحدد من الكالندر */
-        .day-details-box {
+        .btn-primary:hover {
+            background: #d4af37;
+        }
+
+        /* تبويبات العرض */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+        }
+
+        .tab-btn {
+            background: var(--surface-card);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            white-space: nowrap;
+            transition: 0.3s;
+        }
+
+        .tab-btn.active {
+            background: var(--primary);
+            color: #000;
+            border-color: var(--primary);
+        }
+
+        /* محتوى الأقسام */
+        .section-content {
             display: none;
-            background: var(--bg-beige-light);
-            border: 1px solid var(--accent-warm);
+        }
+
+        .section-content.active {
+            display: block;
+        }
+
+        /* كروت الأرشيف */
+        .card {
+            background: var(--surface-card);
+            border: 1px solid var(--border);
             border-radius: 10px;
             padding: 15px;
-            margin-top: 15px;
+            margin-bottom: 15px;
+            position: relative;
+            transition: 0.2s;
         }
-        .day-details-header {
+
+        .card:hover {
+            border-color: var(--primary-dark);
+        }
+
+        .card-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .card-badge {
+            background: rgba(197, 160, 89, 0.15);
+            color: var(--primary);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+
+        .card-desc {
+            color: var(--text-muted);
             font-size: 0.95rem;
             margin-bottom: 10px;
-            border-bottom: 1px solid var(--bg-beige-accent);
-            padding-bottom: 5px;
-        }
-        .close-details-btn {
-            background: none;
-            border: none;
-            font-size: 1.2rem;
-            cursor: pointer;
-            color: var(--text-muted);
+            line-height: 1.5;
         }
 
-        /* الأرشيف */
-        .list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
-        .filters-container { display: flex; gap: 10px; }
-        .archive-card { background: var(--bg-beige-light); border: 1px solid var(--border-silver); border-right: 4px solid var(--silver-dark); border-radius: 8px; padding: 15px; margin-bottom: 10px; }
-        .archive-card-header { display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 5px; }
-        .badges-group { display: flex; gap: 5px; }
-        .badge { background: var(--bg-beige-accent); padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; border: 1px solid var(--border-silver); }
-        .badge-stage { background: #e0d8c8; color: #4a453f; }
-        .archive-meta { display: flex; gap: 15px; font-size: 0.85rem; color: var(--text-muted); margin-top: 5px; }
-        
-        .card-actions { display: flex; gap: 10px; margin-top: 8px; }
-        .btn-action { background: none; border: none; cursor: pointer; font-size: 0.8rem; display: none; }
-        .btn-edit { color: #5c85b3; }
-        .btn-delete { color: #b35c5c; }
-        .btn-action:hover { text-decoration: underline; }
-
-        /* نافذة تحديد الفائزين (Modal) */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.4);
-            backdrop-filter: blur(3px);
-            z-index: 1000;
-            justify-content: center;
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
             align-items: center;
-        }
-        .modal-box {
-            background: var(--bg-beige-card);
-            border: 1px solid var(--border-silver);
-            border-radius: 14px;
-            padding: 25px;
-            width: 90%;
-            max-width: 500px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            font-size: 0.85rem;
+            color: #777;
+            border-top: 1px solid var(--border);
+            padding-top: 8px;
         }
 
-        @media (max-width: 600px) {
-            .form-row { grid-template-columns: 1fr; }
-            .awards-grid { grid-template-columns: 1fr; }
-            .filters-container { flex-direction: column; width: 100%; }
+        .admin-actions {
+            display: none;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .admin-actions.show {
+            display: flex;
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 0.8rem;
+            border-radius: 4px;
+            cursor: pointer;
+            border: none;
+            font-weight: 600;
+        }
+
+        .btn-edit { background: #f39c12; color: #fff; }
+        .btn-delete { background: #e74c3c; color: #fff; }
+
+        /* شاشة التحميل السحابي */
+        #sync-status {
+            text-align: center;
+            padding: 20px;
+            color: var(--primary);
+            font-weight: 500;
         }
     </style>
 </head>
 <body>
 
-    <header class="app-header">
-        <div class="logo-area">
-            <span class="sparkle">✦</span>
-            <h1>الأرشيف الكنسي الدافئ</h1>
-            <span class="sparkle">✦</span>
+    <header>
+        <div class="admin-btn-container">
+            <button class="btn-admin" id="adminToggleBtn" onclick="toggleAdminPanel()">🔒 لوحة المسؤول</button>
         </div>
-        <p class="subtitle">مساحتك الخاصة لتوثيق الأنشطة واللقاءات الكنسية</p>
-        
-        <button id="adminToggleBtn" class="admin-toggle-btn" onclick="handleAdminAccess()">🔒 لوحة المسؤول (إضافة أنشطة)</button>
+        <h1>أرشيف الخدمات والأنشطة الكنسية</h1>
+        <p>سجل الأنشطة، الألعاب، والمواضيع السحابي المباشر</p>
     </header>
 
-    <div class="main-container">
-
-        <!-- قسم لعبة الأسبوع ولعبة الشهر -->
-        <section class="card awards-section">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:2px solid var(--bg-beige-accent); padding-bottom:5px;">
-                <h2 style="border:none; margin:0; padding:0;">🏆 جوائز الألعاب الأفضل</h2>
-                <button id="editAwardsBtn" class="edit-awards-btn" onclick="openAwardsModal()">✏️ تحديد الفائزين</button>
-            </div>
-            <div class="awards-grid">
-                <div class="award-card">
-                    <div class="award-title">🥇 لعبة الأسبوع</div>
-                    <div id="weekGameName" class="award-game-name">لم تُحدد بعد</div>
-                    <div id="weekGameAuthor" class="award-author-name">-</div>
-                </div>
-                <div class="award-card">
-                    <div class="award-title">👑 لعبة الشهر</div>
-                    <div id="monthGameName" class="award-game-name">لم تُحدد بعد</div>
-                    <div id="monthGameAuthor" class="award-author-name">-</div>
-                </div>
-            </div>
-        </section>
-
-        <!-- قسم التايم لاين الزمني الفاخر -->
-        <section class="card timeline-section">
-            <h2>⏳ السجل الزمني للفائزين (Timeline)</h2>
-            <div id="timelineContainer" class="timeline-container">
-                <!-- يُضاف الأرشيف الزمني هنا تلقائياً -->
-            </div>
-        </section>
-
-        <!-- نموذج الإضافة والتعديل -->
-        <div id="addSectionContainer" class="add-section-container">
-            <section class="card add-section">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <h2 id="formTitleText">إضافة إدخال جديد (خاص بالمسؤول)</h2>
-                    <button type="button" onclick="lockAdmin()" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.85rem;">🔒 إغلاق اللوحة</button>
-                </div>
-                <form id="archiveForm">
-                    <input type="hidden" id="editItemId">
-                    <div class="form-group">
-                        <label for="itemTitle">العنوان</label>
-                        <input type="text" id="itemTitle" placeholder="اكتب العنوان هنا..." required>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="itemRole">الصفة</label>
-                            <select id="itemRole">
-                                <option value="المسؤول">المسؤول</option>
-                                <option value="الأخ">الأخ</option>
-                                <option value="الأخت">الأخت</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="itemAuthor">الاسم</label>
-                            <input type="text" id="itemAuthor" placeholder="اكتب الاسم هنا..." required>
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="itemCategory">نوع النشاط</label>
-                            <select id="itemCategory">
-                                <option value="لعبة">🎮 لعبة</option>
-                                <option value="موضوع">📖 موضوع</option>
-                                <option value="نشيد">🎶 نشيد</option>
-                                <option value="لعبة كبرى">🎪 لعبة كبرى</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="itemStage">المرحلة</label>
-                            <select id="itemStage">
-                                <option value="طفولة اولى">طفولة اولى</option>
-                                <option value="طفولة الثانية">طفولة الثانية</option>
-                                <option value="الأعدادي">الأعدادي</option>
-                                <option value="الثانوي">الثانوي</option>
-                                <option value="الجامعيين 1">الجامعيين 1</option>
-                                <option value="الجامعيين 2">الجامعيين 2</option>
-                                <option value="الجامعيين 3">الجامعيين 3</option>
-                                <option value="العاملين">العاملين</option>
-                                <option value="العنصرة">العنصرة</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="itemDate">التاريخ</label>
-                        <input type="date" id="itemDate" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="itemContent">التفاصيل</label>
-                        <textarea id="itemContent" rows="3" placeholder="اكتب تفاصيل هذا النشاط..." required></textarea>
-                    </div>
-
-                    <button type="submit" id="submitBtn" class="btn-primary">حفظ في الأرشيف ✦</button>
-                </form>
-            </section>
-        </div>
-
-        <!-- التقويم التفاعلي -->
-        <section class="card calendar-section">
-            <div class="calendar-header">
-                <button id="prevMonth" class="btn-icon" type="button">&lt;</button>
-                <h2 id="calendarMonthYear">الشهر والسنة</h2>
-                <button id="nextMonth" class="btn-icon" type="button">&gt;</button>
-            </div>
-            <div class="calendar-grid-header">
-                <div>أحد</div><div>إثنين</div><div>ثلاثاء</div><div>أربعاء</div><div>خميس</div><div>جمعة</div><div>سبت</div>
-            </div>
-            <div id="calendarDays" class="calendar-days"></div>
-
-            <div id="dayDetailsBox" class="day-details-box">
-                <div class="day-details-header">
-                    <span>أنشطة تاريخ: <span id="selectedDateTitle"></span></span>
-                    <button class="close-details-btn" onclick="closeDayDetails()">&times;</button>
-                </div>
-                <div id="dayDetailsContent"></div>
-            </div>
-        </section>
-
-        <!-- قائمة وسجل الأرشيف -->
-        <section class="card archive-list-section">
-            <div class="list-header">
-                <h2>سجل الأرشيف (<span id="totalCount">0</span>)</h2>
-                <div class="filters-container">
-                    <select id="filterCategory">
-                        <option value="ALL">كل أنواع الأنشطة</option>
-                        <option value="لعبة">🎮 لعبة</option>
-                        <option value="موضوع">📖 موضوع</option>
-                        <option value="نشيد">🎶 نشيد</option>
-                        <option value="لعبة كبرى">🎪 لعبة كبرى</option>
-                    </select>
-                    <select id="filterStage">
-                        <option value="ALL">كل المراحل</option>
-                        <option value="طفولة اولى">طفولة اولى</option>
-                        <option value="طفولة الثانية">طفولة الثانية</option>
-                        <option value="الأعدادي">الأعدادي</option>
-                        <option value="الثانوي">الثانوي</option>
-                        <option value="الجامعيين 1">الجامعيين 1</option>
-                        <option value="الجامعيين 2">الجامعيين 2</option>
-                        <option value="الجامعيين 3">الجامعيين 3</option>
-                        <option value="العاملين">العاملين</option>
-                        <option value="العنصرة">العنصرة</option>
+    <div class="container">
+        
+        <!-- لوحة تحكم المسؤول (مخفية افتراضياً) -->
+        <div id="admin-panel">
+            <h3>إضافة محتوى جديد للأرشيف</h3>
+            <form id="archiveForm" onsubmit="saveItem(event)">
+                <input type="hidden" id="editItemId">
+                <div class="form-group">
+                    <label>نوع المحتوى</label>
+                    <select id="itemCategory" required>
+                        <option value="لعبة">لعبة (Game)</option>
+                        <option value="موضوع">موضوع (Topic)</option>
+                        <option value="ترنيمة">ترنيمة (Anthem)</option>
+                        <option value="لعبة كبرى">لعبة كبرى (Major Game)</option>
                     </select>
                 </div>
-            </div>
-            <div id="archiveItems" class="archive-items-grid"></div>
-        </section>
-    </div>
-
-    <!-- نافذة تحديد الفائزين (Modal) -->
-    <div id="awardsModal" class="modal-overlay">
-        <div class="modal-box">
-            <h2 style="font-family:'Amiri', serif; font-size:1.3rem; margin-bottom:15px; border-bottom:2px solid var(--bg-beige-accent); padding-bottom:5px;">🏆 تحديد الألعاب الفائزة</h2>
-            <form id="awardsForm">
-                <!-- لعبة الأسبوع -->
-                <h4 style="color:var(--accent-warm); margin-bottom:8px;">🥇 لعبة الأسبوع:</h4>
                 <div class="form-group">
-                    <label>اسم اللعبة</label>
-                    <input type="text" id="modalWeekName" placeholder="مثال: لعبة الرمز والسر">
+                    <label>العنوان</label>
+                    <input type="text" id="itemTitle" placeholder="مثال: مسابقة الكتاب المقدس" required>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>الصفة</label>
-                        <select id="modalWeekRole">
-                            <option value="المسؤول">المسؤول</option>
-                            <option value="الأخ">الأخ</option>
-                            <option value="الأخت">الأخت</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>الاسم</label>
-                        <input type="text" id="modalWeekAuthor" placeholder="اسم صاحب اللعبة">
-                    </div>
-                </div>
-
-                <hr style="border:none; border-top:1px solid var(--border-silver); margin:15px 0;">
-
-                <!-- لعبة الشهر -->
-                <h4 style="color:var(--accent-warm); margin-bottom:8px;">👑 لعبة الشهر:</h4>
                 <div class="form-group">
-                    <label>اسم اللعبة</label>
-                    <input type="text" id="modalMonthName" placeholder="مثال: لعبة البحث الكبرى">
+                    <label>التفاصيل / الوصف</label>
+                    <textarea id="itemDesc" rows="3" placeholder="تفاصيل النشاط..." required></textarea>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>الصفة</label>
-                        <select id="modalMonthRole">
-                            <option value="المسؤول">المسؤول</option>
-                            <option value="الأخ">الأخ</option>
-                            <option value="الأخت">الأخت</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>الاسم</label>
-                        <input type="text" id="modalMonthAuthor" placeholder="اسم صاحب اللعبة">
-                    </div>
+                <div class="form-group">
+                    <label>التاريخ</label>
+                    <input type="date" id="itemDate" required>
                 </div>
-
-                <div style="display:flex; gap:10px; margin-top:20px;">
-                    <button type="submit" class="btn-primary" style="margin:0;">حفظ وإعلان الفائزين ✦</button>
-                    <button type="button" onclick="closeAwardsModal()" class="admin-toggle-btn" style="margin:0;">إلغاء</button>
-                </div>
+                <button type="submit" class="btn-primary" id="saveBtn">حفظ ونشر بالسحاب ✦</button>
             </form>
         </div>
+
+        <!-- أزرار التنقل بين الأقسام -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('all', this)">📌 الكل</button>
+            <button class="tab-btn" onclick="switchTab('لعبة', this)">🎮 ألعاب</button>
+            <button class="tab-btn" onclick="switchTab('موضوع', this)">📖 مواضيع</button>
+            <button class="tab-btn" onclick="switchTab('ترنيمة', this)">🎵 ترانيم</button>
+            <button class="tab-btn" onclick="switchTab('لعبة كبرى', this)">🏆 ألعاب كبرى</button>
+        </div>
+
+        <div id="sync-status">جاري مزامنة البيانات من السحاب... ☁️</div>
+        
+        <!-- قائمة عرض الأرشيف -->
+        <div id="archiveContainer"></div>
+
     </div>
 
-    <!-- كود الجافاسكربت البرمجي -->
     <script>
-        const ADMIN_PASSWORD = "1234";
-        let isAdminLoggedIn = false;
+        let isAdmin = false;
+        let archiveData = {};
 
-        let archiveData = JSON.parse(localStorage.getItem('cozy_archive_items')) || [];
-        let awardsData = JSON.parse(localStorage.getItem('cozy_archive_awards')) || {
-            weekGame: { name: '', author: '', role: 'المسؤول' },
-            monthGame: { name: '', author: '', role: 'المسؤول' }
-        };
-        let timelineHistory = JSON.parse(localStorage.getItem('cozy_archive_timeline')) || [];
-
-        let currentDate = new Date();
-
-        const archiveForm = document.getElementById('archiveForm');
-        const archiveItemsContainer = document.getElementById('archiveItems');
-        const filterCategory = document.getElementById('filterCategory');
-        const filterStage = document.getElementById('filterStage');
-        const totalCountEl = document.getElementById('totalCount');
-        const calendarDaysEl = document.getElementById('calendarDays');
-        const calendarMonthYearEl = document.getElementById('calendarMonthYear');
-        const itemDateInput = document.getElementById('itemDate');
-        const addSectionContainer = document.getElementById('addSectionContainer');
-        const adminToggleBtn = document.getElementById('adminToggleBtn');
-        const editAwardsBtn = document.getElementById('editAwardsBtn');
-        const editItemIdInput = document.getElementById('editItemId');
-        const formTitleText = document.getElementById('formTitleText');
-        const submitBtn = document.getElementById('submitBtn');
-
-        const dayDetailsBox = document.getElementById('dayDetailsBox');
-        const selectedDateTitle = document.getElementById('selectedDateTitle');
-        const dayDetailsContent = document.getElementById('dayDetailsContent');
-        const timelineContainer = document.getElementById('timelineContainer');
-
-        itemDateInput.value = new Date().toISOString().split('T')[0];
-
-        document.addEventListener('DOMContentLoaded', () => {
-            renderArchive();
-            renderCalendar();
-            renderAwards();
-            renderTimeline();
+        // انتظار اتصال فايربيس
+        window.addEventListener('firebase-ready', () => {
+            const itemsRef = window.dbRef(window.db, 'archiveItems');
+            window.dbOnValue(itemsRef, (snapshot) => {
+                const data = snapshot.val();
+                archiveData = data || {};
+                document.getElementById('sync-status').style.display = 'none';
+                renderArchive();
+            });
         });
 
-        // دالة عرض أيقونة واضحة ومميزة حسب الصفة
-        function getRoleFormatted(role, authorName) {
-            let icon = '👑';
-            if (role === 'الأخ') icon = '👦🏻';
-            else if (role === 'الأخت') icon = '👧🏻';
-            else if (role === 'المسؤول') icon = '👨🏻‍💻';
-            
-            return `${icon} ${role}: ${authorName}`;
-        }
-
-        function handleAdminAccess() {
-            if (isAdminLoggedIn) {
-                lockAdmin();
-            } else {
-                const password = prompt("الرجاء إدخال كلمة المرور للدخول إلى لوحة التحكم الإدارية:");
-                if (password === ADMIN_PASSWORD) {
-                    isAdminLoggedIn = true;
-                    addSectionContainer.style.display = 'block';
-                    adminToggleBtn.textContent = '🔓 وضع المسؤول متصل (إغلاق)';
-                    adminToggleBtn.style.backgroundColor = '#d4edda';
-                    editAwardsBtn.style.display = 'inline-block';
+        // تفعيل لوحة المسؤول بكلمة المرور
+        function toggleAdminPanel() {
+            if (!isAdmin) {
+                let pass = prompt("أدخل كلمة مرور المسؤول:");
+                if (pass === "1234") {
+                    isAdmin = true;
+                    document.getElementById('admin-panel').style.display = 'block';
+                    document.getElementById('adminToggleBtn').innerText = "🔓 خروج من المسؤول";
+                    document.getElementById('adminToggleBtn').classList.add('active');
                     renderArchive();
-                } else if (password !== null) {
+                } else if (pass !== null) {
                     alert("كلمة المرور غير صحيحة!");
                 }
-            }
-        }
-
-        function lockAdmin() {
-            isAdminLoggedIn = false;
-            addSectionContainer.style.display = 'none';
-            adminToggleBtn.textContent = '🔒 لوحة المسؤول (إضافة أنشطة)';
-            adminToggleBtn.style.backgroundColor = 'var(--bg-beige-accent)';
-            editAwardsBtn.style.display = 'none';
-            resetForm();
-            renderArchive();
-        }
-
-        /* --- جوائز الألعاب والتايم لاين --- */
-        function renderAwards() {
-            const weekEl = document.getElementById('weekGameName');
-            const weekAuthEl = document.getElementById('weekGameAuthor');
-            const monthEl = document.getElementById('monthGameName');
-            const monthAuthEl = document.getElementById('monthGameAuthor');
-
-            if (awardsData.weekGame && awardsData.weekGame.name) {
-                weekEl.textContent = awardsData.weekGame.name;
-                weekAuthEl.textContent = getRoleFormatted(awardsData.weekGame.role, awardsData.weekGame.author);
             } else {
-                weekEl.textContent = 'لم تُحدد بعد';
-                weekAuthEl.textContent = '-';
-            }
-
-            if (awardsData.monthGame && awardsData.monthGame.name) {
-                monthEl.textContent = awardsData.monthGame.name;
-                monthAuthEl.textContent = getRoleFormatted(awardsData.monthGame.role, awardsData.monthGame.author);
-            } else {
-                monthEl.textContent = 'لم تُحدد بعد';
-                monthAuthEl.textContent = '-';
+                isAdmin = false;
+                document.getElementById('admin-panel').style.display = 'none';
+                document.getElementById('adminToggleBtn').innerText = "🔒 لوحة المسؤول";
+                document.getElementById('adminToggleBtn').classList.remove('active');
+                clearForm();
+                renderArchive();
             }
         }
 
-        function renderTimeline() {
-            if (timelineHistory.length === 0) {
-                timelineContainer.innerHTML = '<p style="color:#888; text-align:center; padding:10px;">لا يوجد سجل فائزين حالياً...</p>';
-                return;
-            }
-
-            let html = '';
-            timelineHistory.forEach(item => {
-                const isMonth = item.type === 'month';
-                const typeText = isMonth ? '👑 لعبة الشهر' : '🥇 لعبة الأسبوع';
-                const badgeIcon = isMonth ? '👑' : '🥇';
-                const typeClass = isMonth ? 'timeline-type month' : 'timeline-type';
-                const roleFormatted = getRoleFormatted(item.role, item.author);
-
-                html += `
-                    <div class="timeline-item">
-                        <div class="timeline-badge">${badgeIcon}</div>
-                        <div class="timeline-content">
-                            <div class="timeline-header">
-                                <span class="${typeClass}">${typeText}</span>
-                                <span class="timeline-date">📅 ${item.date}</span>
-                            </div>
-                            <div class="timeline-title">${escapeHtml(item.name)}</div>
-                            <div class="timeline-author">${escapeHtml(roleFormatted)}</div>
-                        </div>
-                    </div>
-                `;
-            });
-            timelineContainer.innerHTML = html;
-        }
-
-        function openAwardsModal() {
-            document.getElementById('modalWeekName').value = awardsData.weekGame.name || '';
-            document.getElementById('modalWeekRole').value = awardsData.weekGame.role || 'المسؤول';
-            document.getElementById('modalWeekAuthor').value = awardsData.weekGame.author || '';
-
-            document.getElementById('modalMonthName').value = awardsData.monthGame.name || '';
-            document.getElementById('modalMonthRole').value = awardsData.monthGame.role || 'المسؤول';
-            document.getElementById('modalMonthAuthor').value = awardsData.monthGame.author || '';
-
-            document.getElementById('awardsModal').style.display = 'flex';
-        }
-
-        function closeAwardsModal() {
-            document.getElementById('awardsModal').style.display = 'none';
-        }
-
-        document.getElementById('awardsForm').addEventListener('submit', function(e) {
+        // حفظ أو تعديل عنصر في Firebase
+        function saveItem(e) {
             e.preventDefault();
-            
-            const wName = document.getElementById('modalWeekName').value.trim();
-            const wRole = document.getElementById('modalWeekRole').value;
-            const wAuthor = document.getElementById('modalWeekAuthor').value.trim();
+            if (!isAdmin) return;
 
-            const mName = document.getElementById('modalMonthName').value.trim();
-            const mRole = document.getElementById('modalMonthRole').value;
-            const mAuthor = document.getElementById('modalMonthAuthor').value.trim();
-
-            const todayDate = new Date().toLocaleDateString('ar-EG', { day: 'numeric', month: 'short', year: 'numeric' });
-
-            // إضافة للتايم لاين إذا تغيرت اللعبة أو أضيفت حديثاً
-            if (wName && wName !== awardsData.weekGame.name) {
-                timelineHistory.unshift({
-                    type: 'week',
-                    name: wName,
-                    role: wRole,
-                    author: wAuthor,
-                    date: todayDate
-                });
-            }
-
-            if (mName && mName !== awardsData.monthGame.name) {
-                timelineHistory.unshift({
-                    type: 'month',
-                    name: mName,
-                    role: mRole,
-                    author: mAuthor,
-                    date: todayDate
-                });
-            }
-
-            awardsData = {
-                weekGame: { name: wName, role: wRole, author: wAuthor },
-                monthGame: { name: mName, role: mRole, author: mAuthor }
-            };
-
-            localStorage.setItem('cozy_archive_awards', JSON.stringify(awardsData));
-            localStorage.setItem('cozy_archive_timeline', JSON.stringify(timelineHistory));
-
-            renderAwards();
-            renderTimeline();
-            closeAwardsModal();
-            alert("تم إعلان الفائزين وتسجيلهم في التايم لاين الزمني بنجاح! 🏆");
-        });
-
-        function resetForm() {
-            archiveForm.reset();
-            editItemIdInput.value = '';
-            formTitleText.textContent = 'إضافة إدخال جديد (خاص بالمسؤول)';
-            submitBtn.textContent = 'حفظ في الأرشيف ✦';
-            itemDateInput.value = new Date().toISOString().split('T')[0];
-        }
-
-        archiveForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const editId = editItemIdInput.value;
-            const title = document.getElementById('itemTitle').value;
-            const role = document.getElementById('itemRole').value;
-            const author = document.getElementById('itemAuthor').value;
+            const editId = document.getElementById('editItemId').value;
             const category = document.getElementById('itemCategory').value;
-            const stage = document.getElementById('itemStage').value;
+            const title = document.getElementById('itemTitle').value;
+            const desc = document.getElementById('itemDesc').value;
             const date = document.getElementById('itemDate').value;
-            const content = document.getElementById('itemContent').value;
+
+            const itemData = { category, title, desc, date };
 
             if (editId) {
-                archiveData = archiveData.map(item => {
-                    if (item.id == editId) {
-                        return { ...item, title, role, author, category, stage, date, content };
-                    }
-                    return item;
+                // تعديل عنصر موجود
+                const itemRef = window.dbRef(window.db, 'archiveItems/' + editId);
+                window.dbSet(itemRef, itemData).then(() => {
+                    clearForm();
+                    alert("تم تحديث النشاط بنجاح!");
                 });
-                alert("تم تحديث الإدخال بنجاح ✦");
             } else {
-                const newItem = {
-                    id: Date.now(),
-                    title,
-                    role,
-                    author,
-                    category,
-                    stage,
-                    date,
-                    content
-                };
-                archiveData.unshift(newItem);
-                alert("تمت الإضافة بنجاح إلى الأرشيف ✦");
+                // إضافة عنصر جديد
+                const itemsRef = window.dbRef(window.db, 'archiveItems');
+                const newItemRef = window.dbPush(itemsRef);
+                window.dbSet(newItemRef, itemData).then(() => {
+                    clearForm();
+                    alert("تم إضافة النشاط بنجاح للسحاب!");
+                });
             }
-
-            localStorage.setItem('cozy_archive_items', JSON.stringify(archiveData));
-            resetForm();
-            renderArchive();
-            renderCalendar();
-            closeDayDetails();
-        });
-
-        function renderArchive() {
-            const selectedCategory = filterCategory.value;
-            const selectedStage = filterStage.value;
-
-            const items = archiveData.filter(i => {
-                const matchCategory = selectedCategory === 'ALL' || i.category === selectedCategory;
-                const matchStage = selectedStage === 'ALL' || i.stage === selectedStage;
-                return matchCategory && matchStage;
-            });
-
-            totalCountEl.textContent = items.length;
-            archiveItemsContainer.innerHTML = items.length ? '' : '<p style="text-align:center; color:#888; padding:15px;">لا توجد مدخلات بعد...</p>';
-            
-            items.forEach(item => {
-                const div = document.createElement('div');
-                div.className = 'archive-card';
-                const roleFormatted = getRoleFormatted(item.role || 'المسؤول', item.author);
-                const actionDisplayStyle = isAdminLoggedIn ? 'display:inline-block;' : 'display:none;';
-
-                div.innerHTML = `
-                    <div class="archive-card-header">
-                        <span>${escapeHtml(item.title)}</span>
-                        <div class="badges-group">
-                            <span class="badge">${escapeHtml(item.category)}</span>
-                            <span class="badge badge-stage">⛪ ${escapeHtml(item.stage || 'غير محدد')}</span>
-                        </div>
-                    </div>
-                    <div class="archive-meta">
-                        <span>${escapeHtml(roleFormatted)}</span>
-                        <span>📅 ${escapeHtml(item.date)}</span>
-                    </div>
-                    <p style="margin-top:8px;">${escapeHtml(item.content)}</p>
-                    <div class="card-actions">
-                        <button class="btn-action btn-edit" style="${actionDisplayStyle}" onclick="editItem(${item.id})">✏️ تعديل</button>
-                        <button class="btn-action btn-delete" style="${actionDisplayStyle}" onclick="deleteItem(${item.id})">🗑️ حذف</button>
-                    </div>
-                `;
-                archiveItemsContainer.appendChild(div);
-            });
         }
 
+        // حذف عنصر من Firebase
+        function deleteItem(id) {
+            if (!isAdmin) return;
+            if (confirm("هل أنت متأكد من حذف هذا النشاط نهائياً؟")) {
+                const itemRef = window.dbRef(window.db, 'archiveItems/' + id);
+                window.dbRemove(itemRef);
+            }
+        }
+
+        // تعبئة نموذج التعديل
         function editItem(id) {
-            const item = archiveData.find(i => i.id === id);
+            if (!isAdmin) return;
+            const item = archiveData[id];
             if (!item) return;
 
-            editItemIdInput.value = item.id;
-            document.getElementById('itemTitle').value = item.title;
-            document.getElementById('itemRole').value = item.role || 'المسؤول';
-            document.getElementById('itemAuthor').value = item.author;
+            document.getElementById('editItemId').value = id;
             document.getElementById('itemCategory').value = item.category;
-            document.getElementById('itemStage').value = item.stage;
+            document.getElementById('itemTitle').value = item.title;
+            document.getElementById('itemDesc').value = item.desc;
             document.getElementById('itemDate').value = item.date;
-            document.getElementById('itemContent').value = item.content;
-
-            formTitleText.textContent = 'تعديل الإدخال الحالي';
-            submitBtn.textContent = 'حفظ التعديلات ✦';
-
-            addSectionContainer.style.display = 'block';
+            document.getElementById('saveBtn').innerText = "حفظ التعديلات ✦";
+            
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        function deleteItem(id) {
-            if (confirm('هل أنت متأكد من حذف هذا العنصر؟')) {
-                archiveData = archiveData.filter(i => i.id !== id);
-                localStorage.setItem('cozy_archive_items', JSON.stringify(archiveData));
-                renderArchive();
-                renderCalendar();
-                closeDayDetails();
-            }
+        function clearForm() {
+            document.getElementById('archiveForm').reset();
+            document.getElementById('editItemId').value = '';
+            document.getElementById('saveBtn').innerText = "حفظ ونشر بالسحاب ✦";
         }
 
-        filterCategory.addEventListener('change', renderArchive);
-        filterStage.addEventListener('change', renderArchive);
-
-        function renderCalendar() {
-            const year = currentDate.getFullYear();
-            const month = currentDate.getMonth();
-            const months = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
-            calendarMonthYearEl.textContent = `${months[month]} ${year}`;
-            calendarDaysEl.innerHTML = '';
-
-            const firstDay = new Date(year, month, 1).getDay();
-            const lastDay = new Date(year, month + 1, 0).getDate();
-
-            for (let x = 0; x < firstDay; x++) {
-                const emptyDiv = document.createElement('div');
-                calendarDaysEl.appendChild(emptyDiv);
-            }
-
-            for (let i = 1; i <= lastDay; i++) {
-                const dayDiv = document.createElement('div');
-                dayDiv.className = 'day-cell';
-                dayDiv.textContent = i;
-                
-                const formattedMonth = String(month + 1).padStart(2, '0');
-                const formattedDay = String(i).padStart(2, '0');
-                const dStr = `${year}-${formattedMonth}-${formattedDay}`;
-
-                const dayItems = archiveData.filter(item => item.date === dStr);
-
-                if (dayItems.length > 0) {
-                    dayDiv.classList.add('has-event');
-                    dayDiv.title = `يوجد (${dayItems.length}) أنشطة بهذا اليوم`;
-                }
-
-                dayDiv.addEventListener('click', () => {
-                    showDayDetails(dStr, dayItems);
-                });
-
-                calendarDaysEl.appendChild(dayDiv);
-            }
+        let currentFilter = 'all';
+        function switchTab(category, btn) {
+            currentFilter = category;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderArchive();
         }
 
-        function showDayDetails(dateStr, items) {
-            selectedDateTitle.textContent = dateStr;
-            dayDetailsBox.style.display = 'block';
+        // رسم كروت الأرشيف على الشاشة
+        function renderArchive() {
+            const container = document.getElementById('archiveContainer');
+            container.innerHTML = '';
 
-            if (items.length === 0) {
-                dayDetailsContent.innerHTML = '<p style="color:#888; font-size:0.85rem;">لا توجد أنشطة مُوثّقة في هذا اليوم.</p>';
-            } else {
-                let html = '';
-                items.forEach(item => {
-                    const roleFormatted = getRoleFormatted(item.role || 'المسؤول', item.author);
-                    html += `
-                        <div style="background: #fff; border: 1px solid var(--border-silver); border-radius: 6px; padding: 10px; margin-bottom: 8px;">
-                            <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:0.9rem;">
-                                <span>${escapeHtml(item.title)}</span>
-                                <span class="badge">${escapeHtml(item.category)}</span>
-                            </div>
-                            <div style="font-size:0.78rem; color:var(--text-muted); margin: 3px 0;">
-                                <span>${escapeHtml(roleFormatted)}</span> | 
-                                <span>⛪ ${escapeHtml(item.stage)}</span>
-                            </div>
-                            <p style="font-size:0.85rem; margin-top:5px;">${escapeHtml(item.content)}</p>
-                        </div>
-                    `;
-                });
-                dayDetailsContent.innerHTML = html;
+            const keys = Object.keys(archiveData);
+            if (keys.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: var(--text-muted); margin-top: 30px;">لا يوجد أنشطة مضافة حتى الآن.</p>';
+                return;
             }
-        }
 
-        function closeDayDetails() {
-            dayDetailsBox.style.display = 'none';
-        }
+            // ترتيب العناصر حسب التاريخ تنازلياً
+            keys.sort((a, b) => new Date(archiveData[b].date) - new Date(archiveData[a].date));
 
-        document.getElementById('prevMonth').onclick = () => { 
-            currentDate.setMonth(currentDate.getMonth() - 1); 
-            renderCalendar(); 
-            closeDayDetails();
-        };
-        document.getElementById('nextMonth').onclick = () => { 
-            currentDate.setMonth(currentDate.getMonth() + 1); 
-            renderCalendar(); 
-            closeDayDetails();
-        };
+            keys.forEach(id => {
+                const item = archiveData[id];
+                if (currentFilter !== 'all' && item.category !== currentFilter) return;
 
-        function escapeHtml(str) {
-            if (!str) return '';
-            return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div class="card-header">
+                        <span class="card-title">${item.title}</span>
+                        <span class="card-badge">${item.category}</span>
+                    </div>
+                    <div class="card-desc">${item.desc}</div>
+                    <div class="card-footer">
+                        <span>📅 ${item.date}</span>
+                    </div>
+                    <div class="admin-actions ${isAdmin ? 'show' : ''}">
+                        <button class="btn-sm btn-edit" onclick="editItem('${id}')">تعديل</button>
+                        <button class="btn-sm btn-delete" onclick="deleteItem('${id}')">حذف</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
         }
     </script>
 </body>
