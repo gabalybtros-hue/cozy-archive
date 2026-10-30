@@ -5,11 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>أرشيف الخدمات والأنشطة الكنسية</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
-    <!-- Firebase SDKs -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue, push, remove, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+    
+    <!-- Firebase App (Core SDK) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <!-- Firebase Database SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
+    <script>
+        // إعدادات فايربيس الخاصة بك
         const firebaseConfig = {
             apiKey: "AIzaSyAtbuiDat776HcUr92_hyfVt8XcfhLSlUk",
             authDomain: "church-archive-87f29.firebaseapp.com",
@@ -21,19 +24,11 @@
             measurementId: "G-LH3S4MQ3HK"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-
-        window.db = db;
-        window.dbRef = ref;
-        window.dbSet = set;
-        window.dbOnValue = onValue;
-        window.dbPush = push;
-        window.dbRemove = remove;
-        window.dbUpdate = update;
-
-        window.dispatchEvent(new Event('firebase-ready'));
+        // تهيئة فايربيس
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
     </script>
+
     <style>
         :root {
             --primary: #c5a059;
@@ -196,14 +191,6 @@
             border-color: var(--primary);
         }
 
-        .section-content {
-            display: none;
-        }
-
-        .section-content.active {
-            display: block;
-        }
-
         .card {
             background: var(--surface-card);
             border: 1px solid var(--border);
@@ -246,4 +233,362 @@
             line-height: 1.5;
         }
 
-        .card-footer
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            color: #777;
+            border-top: 1px solid var(--border);
+            padding-top: 8px;
+        }
+
+        .admin-actions {
+            display: none;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .admin-actions.show {
+            display: flex;
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 0.8rem;
+            border-radius: 4px;
+            cursor: pointer;
+            border: none;
+            font-weight: 600;
+        }
+
+        .btn-edit { background: #f39c12; color: #fff; }
+        .btn-delete { background: #e74c3c; color: #fff; }
+
+        .timeline-container {
+            margin-top: 30px;
+            border-top: 2px dashed var(--border);
+            padding-top: 20px;
+        }
+
+        .timeline-title {
+            color: var(--primary);
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .award-card {
+            background: linear-gradient(135deg, #1e1e1e, #2a2518);
+            border: 1px solid var(--primary);
+            border-radius: 10px;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .award-info h4 {
+            color: var(--primary);
+            font-size: 1rem;
+            margin-bottom: 3px;
+        }
+
+        .award-info p {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .winner-badge {
+            background: var(--primary);
+            color: #000;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        #sync-status {
+            text-align: center;
+            padding: 20px;
+            color: var(--primary);
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="admin-btn-container">
+            <button class="btn-admin" id="adminToggleBtn" onclick="toggleAdminPanel()">🔒 لوحة المسؤول</button>
+        </div>
+        <h1>أرشيف الخدمات والأنشطة الكنسية</h1>
+        <p>سجل الأنشطة، الألعاب، والمواضيع السحابي المباشر</p>
+    </header>
+
+    <div class="container">
+        
+        <div id="admin-panel">
+            <h3>لوحة تحكم المسؤول (إضافة وتعديل)</h3>
+            <form id="archiveForm" onsubmit="saveItem(event)">
+                <input type="hidden" id="editItemId">
+                <div class="form-group">
+                    <label>نوع المحتوى</label>
+                    <select id="itemCategory" required>
+                        <option value="لعبة">لعبة (Game)</option>
+                        <option value="موضوع">موضوع (Topic)</option>
+                        <option value="ترنيمة">ترنيمة (Anthem)</option>
+                        <option value="لعبة كبرى">لعبة كبرى (Major Game)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>العنوان</label>
+                    <input type="text" id="itemTitle" placeholder="مثال: مسابقة الكتاب المقدس" required>
+                </div>
+                <div class="form-group">
+                    <label>التفاصيل / الوصف</label>
+                    <textarea id="itemDesc" rows="3" placeholder="تفاصيل النشاط..." required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>التاريخ</label>
+                    <input type="date" id="itemDate" required>
+                </div>
+                <button type="submit" class="btn-primary" id="saveBtn">حفظ ونشر بالسحاب ✦</button>
+            </form>
+
+            <hr style="border-color: var(--border); margin: 20px 0;">
+
+            <h3>إضافة فائز بجائزة جديدة 🏆</h3>
+            <form id="awardForm" onsubmit="saveAward(event)">
+                <div class="form-group">
+                    <label>اسم الجائزة / النشاط</label>
+                    <input type="text" id="awardTitle" placeholder="مثال: بطولة الألعاب الكبرى" required>
+                </div>
+                <div class="form-group">
+                    <label>اسم الفائز (مع الإيموجي 👑 👦🏻 👧🏻)</label>
+                    <input type="text" id="winnerName" placeholder="👑 اسم الفائز" required>
+                </div>
+                <div class="form-group">
+                    <label>التاريخ</label>
+                    <input type="date" id="awardDate" required>
+                </div>
+                <button type="submit" class="btn-primary" style="background: var(--accent); color: #fff;">إضافة الفائز للتايم لاين ✦</button>
+            </form>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('all', this)">📌 الكل</button>
+            <button class="tab-btn" onclick="switchTab('لعبة', this)">🎮 ألعاب</button>
+            <button class="tab-btn" onclick="switchTab('موضوع', this)">📖 مواضيع</button>
+            <button class="tab-btn" onclick="switchTab('ترنيمة', this)">🎵 ترانيم</button>
+            <button class="tab-btn" onclick="switchTab('لعبة كبرى', this)">🏆 ألعاب كبرى</button>
+        </div>
+
+        <div id="sync-status">جاري مزامنة البيانات من السحاب... ☁️</div>
+        
+        <div id="archiveContainer"></div>
+
+        <div class="timeline-container">
+            <div class="timeline-title">👑 سجل الفائزين والألعاب الكبرى</div>
+            <div id="awardsContainer"></div>
+        </div>
+
+    </div>
+
+    <script>
+        let isAdmin = false;
+        let archiveData = {};
+        let awardsData = {};
+
+        // الاتصال بقاعدة البيانات السحابية
+        window.addEventListener('DOMContentLoaded', () => {
+            // جلب الأرشيف
+            db.ref('archiveItems').on('value', (snapshot) => {
+                archiveData = snapshot.val() || {};
+                document.getElementById('sync-status').style.display = 'none';
+                renderArchive();
+            });
+
+            // جلب الجوائز
+            db.ref('awardsItems').on('value', (snapshot) => {
+                awardsData = snapshot.val() || {};
+                renderAwards();
+            });
+        });
+
+        function toggleAdminPanel() {
+            if (!isAdmin) {
+                let pass = prompt("أدخل كلمة مرور المسؤول:");
+                if (pass === "1234") {
+                    isAdmin = true;
+                    document.getElementById('admin-panel').style.display = 'block';
+                    document.getElementById('adminToggleBtn').innerText = "🔓 خروج من المسؤول";
+                    document.getElementById('adminToggleBtn').classList.add('active');
+                    renderArchive();
+                    renderAwards();
+                } else if (pass !== null) {
+                    alert("كلمة المرور غير صحيحة!");
+                }
+            } else {
+                isAdmin = false;
+                document.getElementById('admin-panel').style.display = 'none';
+                document.getElementById('adminToggleBtn').innerText = "🔒 لوحة المسؤول";
+                document.getElementById('adminToggleBtn').classList.remove('active');
+                clearForm();
+                renderArchive();
+                renderAwards();
+            }
+        }
+
+        function saveItem(e) {
+            e.preventDefault();
+            if (!isAdmin) return;
+
+            const editId = document.getElementById('editItemId').value;
+            const category = document.getElementById('itemCategory').value;
+            const title = document.getElementById('itemTitle').value;
+            const desc = document.getElementById('itemDesc').value;
+            const date = document.getElementById('itemDate').value;
+            const itemData = { category, title, desc, date };
+
+            if (editId) {
+                db.ref('archiveItems/' + editId).set(itemData).then(() => {
+                    clearForm();
+                    alert("تم تحديث النشاط بنجاح!");
+                });
+            } else {
+                db.ref('archiveItems').push(itemData).then(() => {
+                    clearForm();
+                    alert("تم إضافة النشاط بنجاح للسحاب!");
+                });
+            }
+        }
+
+        function saveAward(e) {
+            e.preventDefault();
+            if (!isAdmin) return;
+
+            const title = document.getElementById('awardTitle').value;
+            const winner = document.getElementById('winnerName').value;
+            const date = document.getElementById('awardDate').value;
+            const awardData = { title, winner, date };
+
+            db.ref('awardsItems').push(awardData).then(() => {
+                document.getElementById('awardForm').reset();
+                alert("تم إضافة الفائز بنجاح!");
+            });
+        }
+
+        function deleteItem(id) {
+            if (!isAdmin) return;
+            if (confirm("هل أنت متأكد من حذف هذا العنصر؟")) {
+                db.ref('archiveItems/' + id).remove();
+            }
+        }
+
+        function deleteAward(id) {
+            if (!isAdmin) return;
+            if (confirm("هل أنت متأكد من حذف هذا الفائز؟")) {
+                db.ref('awardsItems/' + id).remove();
+            }
+        }
+
+        function editItem(id) {
+            if (!isAdmin) return;
+            const item = archiveData[id];
+            if (!item) return;
+
+            document.getElementById('editItemId').value = id;
+            document.getElementById('itemCategory').value = item.category;
+            document.getElementById('itemTitle').value = item.title;
+            document.getElementById('itemDesc').value = item.desc;
+            document.getElementById('itemDate').value = item.date;
+            document.getElementById('saveBtn').innerText = "حفظ التعديلات ✦";
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function clearForm() {
+            document.getElementById('archiveForm').reset();
+            document.getElementById('editItemId').value = '';
+            document.getElementById('saveBtn').innerText = "حفظ ونشر بالسحاب ✦";
+        }
+
+        let currentFilter = 'all';
+        function switchTab(category, btn) {
+            currentFilter = category;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderArchive();
+        }
+
+        function renderArchive() {
+            const container = document.getElementById('archiveContainer');
+            container.innerHTML = '';
+
+            const keys = Object.keys(archiveData);
+            if (keys.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: var(--text-muted); margin-top: 20px;">لا يوجد أنشطة مضافة حتى الآن.</p>';
+                return;
+            }
+
+            keys.sort((a, b) => new Date(archiveData[b].date) - new Date(archiveData[a].date));
+
+            keys.forEach(id => {
+                const item = archiveData[id];
+                if (currentFilter !== 'all' && item.category !== currentFilter) return;
+
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div class="card-header">
+                        <span class="card-title">${item.title}</span>
+                        <span class="card-badge">${item.category}</span>
+                    </div>
+                    <div class="card-desc">${item.desc}</div>
+                    <div class="card-footer">
+                        <span>📅 ${item.date}</span>
+                    </div>
+                    <div class="admin-actions ${isAdmin ? 'show' : ''}">
+                        <button class="btn-sm btn-edit" onclick="editItem('${id}')">تعديل</button>
+                        <button class="btn-sm btn-delete" onclick="deleteItem('${id}')">حذف</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderAwards() {
+            const container = document.getElementById('awardsContainer');
+            container.innerHTML = '';
+
+            const keys = Object.keys(awardsData);
+            if (keys.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: var(--text-muted); font-size: 0.9rem;">لا يوجد فائزين مسجلين حتى الآن.</p>';
+                return;
+            }
+
+            keys.sort((a, b) => new Date(awardsData[b].date) - new Date(awardsData[a].date));
+
+            keys.forEach(id => {
+                const award = awardsData[id];
+                const card = document.createElement('div');
+                card.className = 'award-card';
+                card.innerHTML = `
+                    <div class="award-info">
+                        <h4>🏆 ${award.title}</h4>
+                        <p>📅 ${award.date}</p>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span class="winner-badge">${award.winner}</span>
+                        ${isAdmin ? `<button class="btn-sm btn-delete" onclick="deleteAward('${id}')">حذف</button>` : ''}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+    </script>
+</body>
+</html>
